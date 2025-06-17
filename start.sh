@@ -37,6 +37,43 @@ fi
 
 print_status "Python 3 found: $(python3 --version)"
 
+# Check for running dd-agent container
+print_info "Checking for running datadog-agent container..."
+if command -v docker &> /dev/null; then
+    if docker ps --format '{{.Names}}' | grep -q "datadog-agent"; then
+        print_warning "Found running datadog-agent container. Stopping it..."
+        docker stop datadog-agent
+        print_status "datadog-agent container stopped"
+    fi
+    if docker ps -a --format '{{.Names}}' | grep -q "datadog-agent"; then
+        print_info "Removing old datadog-agent container..."
+        sleep 5
+        docker rm datadog-agent
+        print_status "Old datadog-agent container removed"
+    fi
+else
+    print_error "Docker not found. Please install Docker and try again."
+    exit 1
+fi
+
+# Start the Datadog Agent
+print_info "No datadog-agent container found running"
+print_info "Starting Datadog Agent..."
+docker run -d \
+    --name datadog-agent \
+    --cgroupns host \
+    --pid host \
+    -e DD_API_KEY="${DD_API_KEY}" \
+    -e DD_LOGS_ENABLED=true \
+    -e DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true \
+    -e DD_LOGS_CONFIG_DOCKER_CONTAINER_USE_FILE=true \
+    -e DD_SITE="${DD_SITE}" \
+    -v /var/run/docker.sock:/var/run/docker.sock:ro \
+    -v /var/lib/docker/containers:/var/lib/docker/containers:ro \
+    -v /opt/datadog-agent/run:/opt/datadog-agent/run:rw \
+    gcr.io/datadoghq/agent:latest
+print_status "Datadog Agent container started"
+
 # Check if pip is available
 if ! command -v pip3 &> /dev/null && ! command -v pip &> /dev/null; then
     print_error "pip is required but not installed. Please install pip."
@@ -141,4 +178,4 @@ print_info "Press Ctrl+C to stop the service"
 echo
 
 # Start the service
-python3 logs_querier.py 
+python3 logs_querier.py
