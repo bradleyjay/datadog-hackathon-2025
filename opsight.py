@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 import requests
 from dotenv import load_dotenv
+from ClaudeLocalAnalysis import ClaudeLocalAnalysis
 
 # Load environment variables
 load_dotenv()
@@ -719,6 +720,158 @@ def submit_logs():
         })
         return jsonify({"error": error_msg}), 500
 
+@app.route('/analyze/code', methods=['POST'])
+def analyze_code():
+    """
+    Analyze code directory using Claude
+    Expected JSON payload:
+    {
+        "directory": "/path/to/code/directory",
+        "prompt": "What does this code do?",
+        "max_files": 20 (optional),
+        "max_file_size": 100 (optional, in KB),
+        "max_lines": 200 (optional),
+        "extensions": [".py", ".js"] (optional, file extensions to include)
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        # Log incoming request
+        logger.info("Code analysis request received", extra={
+            'endpoint': '/analyze/code',
+            'method': 'POST',
+            'log_type': 'api_request'
+        })
+        
+        if not data:
+            error_msg = "JSON payload required"
+            logger.warning("Bad request - no JSON payload", extra={
+                'endpoint': '/analyze/code',
+                'error': error_msg,
+                'log_type': 'api_error'
+            })
+            return jsonify({"error": error_msg}), 400
+        
+        # Required parameters
+        directory = data.get('directory')
+        prompt = data.get('prompt')
+        
+        if not directory:
+            error_msg = "Missing required parameter: directory"
+            logger.warning("Bad request - missing directory", extra={
+                'endpoint': '/analyze/code',
+                'error': error_msg,
+                'log_type': 'api_error'
+            })
+            return jsonify({"error": error_msg}), 400
+        
+        if not prompt:
+            error_msg = "Missing required parameter: prompt"
+            logger.warning("Bad request - missing prompt", extra={
+                'endpoint': '/analyze/code',
+                'error': error_msg,
+                'log_type': 'api_error'
+            })
+            return jsonify({"error": error_msg}), 400
+        
+        # Optional parameters
+        max_files = data.get('max_files', 20)
+        max_file_size = data.get('max_file_size', 100)
+        max_lines = data.get('max_lines', 200)
+        extensions = data.get('extensions')
+        
+        # Validate directory exists
+        if not os.path.exists(directory):
+            error_msg = f"Directory does not exist: {directory}"
+            logger.warning("Bad request - directory not found", extra={
+                'endpoint': '/analyze/code',
+                'directory': directory,
+                'error': error_msg,
+                'log_type': 'api_error'
+            })
+            return jsonify({"error": error_msg}), 400
+        
+        if not os.path.isdir(directory):
+            error_msg = f"Path is not a directory: {directory}"
+            logger.warning("Bad request - not a directory", extra={
+                'endpoint': '/analyze/code',
+                'directory': directory,
+                'error': error_msg,
+                'log_type': 'api_error'
+            })
+            return jsonify({"error": error_msg}), 400
+        
+        # Initialize Claude analyzer
+        try:
+            analyzer = ClaudeLocalAnalysis()
+            
+            # Prepare analysis options
+            analysis_options = {
+                'max_files': max_files,
+                'max_size_kb': max_file_size,
+                'max_lines_per_file': max_lines
+            }
+            
+            if extensions:
+                analysis_options['extensions'] = extensions
+            
+            # Log analysis start
+            logger.info("Starting Claude code analysis", extra={
+                'endpoint': '/analyze/code',
+                'directory': directory,
+                'prompt': prompt[:100] + "..." if len(prompt) > 100 else prompt,
+                'analysis_options': analysis_options,
+                'log_type': 'claude_analysis_start'
+            })
+            
+            # Perform analysis
+            analysis_result = analyzer.analyze_any_directory(
+                directory, 
+                prompt,
+                analysis_options=analysis_options,
+                max_tokens=3000
+            )
+            
+            response_data = {
+                "success": True,
+                "directory": directory,
+                "prompt": prompt,
+                "analysis_options": analysis_options,
+                "analysis": analysis_result
+            }
+            
+            # Log successful response
+            logger.info("Claude code analysis completed successfully", extra={
+                'endpoint': '/analyze/code',
+                'directory': directory,
+                'prompt_length': len(prompt),
+                'response_length': len(analysis_result),
+                'log_type': 'api_response'
+            })
+            
+            return jsonify(response_data)
+            
+        except Exception as e:
+            error_msg = f"Failed to analyze code with Claude: {str(e)}"
+            logger.error("Claude analysis failed", extra={
+                'endpoint': '/analyze/code',
+                'directory': directory,
+                'prompt': prompt[:100] + "..." if len(prompt) > 100 else prompt,
+                'error': error_msg,
+                'log_type': 'api_error'
+            })
+            return jsonify({"error": error_msg}), 500
+            
+    except Exception as e:
+        error_msg = f"Internal server error: {str(e)}"
+        logger.error("Internal server error", extra={
+            'endpoint': '/analyze/code',
+            'error': error_msg,
+            'log_type': 'api_error'
+        })
+        return jsonify({"error": error_msg}), 500
+
 if __name__ == '__main__':
     print(f"Starting opsight service...")
     print(f"DD_API_KEY configured: {'Yes' if DD_API_KEY else 'No'}")
@@ -732,5 +885,6 @@ if __name__ == '__main__':
     print(f"  POST /logs/search")
     print(f"  POST /logs/search/timerange")
     print(f"  POST /logs/submit")
+    print(f"  POST /analyze/code")
     
     app.run(host='0.0.0.0', port=5000, debug=True) 

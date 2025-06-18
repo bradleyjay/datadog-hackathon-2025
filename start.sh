@@ -140,5 +140,13 @@ echo
 print_info "Press Ctrl+C to stop the service"
 echo
 
+# claude setup
+echo \
+'- name: openai/openai/gpt-4.1-nano
+  extra_params:
+    extra_headers:
+      org-id: "2"
+      source: "aip-dev"' > ~/.aider.model.settings.yml
+
 # Start the service
-python3 opsight.py
+# python3 opsight.py
