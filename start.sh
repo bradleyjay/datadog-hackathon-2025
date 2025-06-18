@@ -149,4 +149,4 @@ echo \
       source: "aip-dev"' > ~/.aider.model.settings.yml
 
 # Start the service
-# python3 opsight.py
+python3 opsight.py
