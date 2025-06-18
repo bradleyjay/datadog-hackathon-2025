@@ -9,17 +9,20 @@ A Python service that provides a REST API interface for querying Datadog logs wi
   - Support for absolute and relative time ranges
   - Custom query filtering
   - Automatic API key management
+  - Direct log submission to Datadog
 
 - **🚀 REST API Endpoints**
   - Health check endpoint
   - Logs search with specific timestamps
   - Logs search with relative timeranges (e.g., last hour)
+  - Direct log submission to Datadog
 
 - **📊 Built-in Monitoring**
-  - Periodic status logging (enabled by default)
+  - Periodic status logging with direct Datadog integration
   - Structured JSON logs for Datadog agent pickup
   - API request/response tracking
   - Error and performance monitoring
+  - Redundant local logging
 
 - **🛠️ Interactive CLI**
   - Quick search commands
@@ -136,6 +139,23 @@ Content-Type: application/json
 }
 ```
 
+### Submit Logs to Datadog
+```http
+POST /logs/submit
+Content-Type: application/json
+
+{
+    "logs": [
+        {
+            "message": "log message",
+            "service": "service name",
+            "status": "info|warning|error",
+            ... additional fields ...
+        }
+    ]
+}
+```
+
 #### Available Timeranges
 - `15m` - Last 15 minutes
 - `30m` - Last 30 minutes
@@ -199,9 +219,12 @@ python cli.py examples
      "service": "logs_querier",
      "message": "Periodic status check",
      "service_status": "healthy",
-     "endpoints_available": ["health", "logs/search", "logs/search/timerange"]
+     "endpoints_available": ["health", "logs/search", "logs/search/timerange", "logs/submit"],
+     "status": "info",
+     "uptime_check": true
    }
    ```
+   These logs are now directly submitted to Datadog while maintaining local logging for redundancy.
 
 2. **API Request Logs**
    ```json
