@@ -51,14 +51,18 @@ fi
 
 print_status "Using $PIP_CMD for package management"
 
-# Check if virtual environment should be created
-if [ "$1" = "--venv" ] || [ "$1" = "-v" ]; then
+# Check if virtual environment exists, create if not
+if [ ! -d "venv" ]; then
     print_info "Creating virtual environment..."
     python3 -m venv venv
-    source venv/bin/activate
-    print_status "Virtual environment activated"
-    PIP_CMD="pip"  # Use pip inside venv
+    print_status "Virtual environment created"
 fi
+
+# Always activate virtual environment
+print_info "Activating virtual environment..."
+source venv/bin/activate
+print_status "Virtual environment activated"
+PIP_CMD="pip"  # Use pip inside venv
 
 # Check if requirements.txt exists
 if [ ! -f "requirements.txt" ]; then
