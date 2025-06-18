@@ -302,3 +302,7 @@ python cli.py examples
 ## 📝 License
 
 MIT License - Feel free to use this code in your projects! 
+
+## Usage notes
+
+For datadog staging, set `DD_SITE=datad0g.com` in your local `.env` file.
